@@ -1,239 +1,317 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Distance Quest 7.0</title>
-<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
-<style>
-body, html {margin:0;padding:0;font-family:'VT323',monospace;overflow:hidden;height:100vh;background:#000;}
-#gameArea {position:relative;width:100vw;height:100vh;overflow:hidden;}
-#map {position:absolute;width:3000px;height:1500px;background:url('https://i.imgur.com/5KzXoWb.jpg') repeat; background-size:cover;transition:left 0.2s, top 0.2s;}
-.character {position:absolute;width:64px;height:128px;background-size:contain;background-repeat:no-repeat;z-index:10;image-rendering: pixelated;}
-#knight {background-image:url('https://i.imgur.com/Hw4h8Tf.png');} 
-#princess {background-image:url('https://i.imgur.com/mO4P68N.png');} 
-#cat {width:48px;height:48px;background-image:url('https://i.imgur.com/F2s6kgI.png');}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distance Quest 7.0: My Buwan Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        body, html { margin:0; padding:0; font-family:'VT323', monospace; overflow:hidden; height:100vh; background:#0a0a0a; color: white; }
+        #gameArea { position:relative; width:100vw; height:100vh; overflow:hidden; }
+        
+        /* The Map */
+        #map { 
+            position:absolute; 
+            width:3000px; 
+            height:1500px; 
+            background: #1a1a2e url('https://www.transparenttextures.com/patterns/stardust.png'); 
+            transition: transform 0.1s ease-out; 
+            will-change: transform;
+        }
 
-/* Monster emoji */
-.monster {position:absolute;font-size:60px;z-index:12;}
-.heart {position:absolute;font-size:40px;cursor:pointer;z-index:11;animation:pulse 1s infinite alternate;}
-@keyframes pulse {from{transform:scale(1);}to{transform:scale(1.2);}}
-#lantern {position:absolute;font-size:80px;display:none;z-index:15;animation:float 3s ease-in-out infinite alternate;}
-@keyframes float {from{transform:translateY(0);}to{transform:translateY(-20px);}}
-#score {position:absolute;top:10px;left:10px;font-size:24px;color:#ff77aa;background:rgba(0,0,0,0.5);padding:5px;border-radius:4px;}
-#text {position:absolute;bottom:10px;width:100%;text-align:center;font-size:26px;color:white;text-shadow:2px 2px #000;}
-#minimap {position:absolute;top:10px;right:10px;width:150px;height:100px;background:rgba(0,0,0,0.5);border:2px solid #fff;z-index:20;}
-.minimap-dot {position:absolute;width:6px;height:6px;background:#ff77aa;border-radius:50%;}
-</style>
+        /* Characters */
+        .character { 
+            position:absolute; 
+            width:64px; 
+            height:128px; 
+            background-size:contain; 
+            background-repeat:no-repeat; 
+            z-index:10; 
+            image-rendering: pixelated; 
+            transition: transform 0.2s;
+        }
+        #knight { background-image:url('https://i.imgur.com/Hw4h8Tf.png'); }
+        #princess { background-image:url('https://i.imgur.com/mO4P68N.png'); }
+        #cat { width:48px; height:48px; background-image:url('https://i.imgur.com/F2s6kgI.png'); }
+        
+        /* Flip Knight */
+        .facing-left { transform: scaleX(-1); }
+
+        /* Speech Bubbles */
+        .bubble {
+            position: absolute;
+            background: white;
+            color: black;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 18px;
+            border: 2px solid #ff77aa;
+            pointer-events: none;
+            z-index: 100;
+            transform: translateY(-40px);
+            animation: floatBubble 2s infinite ease-in-out;
+        }
+
+        @keyframes floatBubble { 0%, 100% { transform: translateY(-40px); } 50% { transform: translateY(-50px); } }
+
+        /* Game Elements */
+        .monster { position:absolute; font-size:60px; z-index:12; transition: all 0.5s; }
+        .heart { 
+            position:absolute; font-size:40px; cursor:pointer; z-index:11; 
+            animation: pulse 1s infinite alternate; 
+            transition: opacity 0.3s;
+        }
+        @keyframes pulse { from{transform:scale(1);} to{transform:scale(1.3);}}
+
+        #score { position:fixed; top:20px; left:20px; font-size:32px; color:#ff77aa; background:rgba(0,0,0,0.7); padding:10px 20px; border-radius:8px; border: 2px solid #ff77aa; z-index:100; }
+        #text-box { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); width:60%; text-align:center; font-size:28px; background:rgba(0,0,0,0.8); padding:15px; border: 3px solid #fff; border-radius:10px; z-index:100; }
+        
+        /* Minimap */
+        #minimap { position:fixed; top:20px; right:20px; width:150px; height:75px; background:rgba(0,0,0,0.8); border:2px solid #fff; z-index:100; overflow:hidden; }
+        .minimap-dot { position:absolute; width:6px; height:6px; border-radius:50%; }
+
+        /* UI */
+        #lantern { position:absolute; font-size:80px; display:none; z-index:15; animation: bounce 2s infinite; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-30px); } }
+    </style>
 </head>
 <body>
 
-<audio id="bgMusic" loop preload="auto">
-  <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3">
+<audio id="bgMusic" loop>
+    <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3">
 </audio>
 
 <div id="gameArea">
-  <div id="map">
-    <div id="knight" class="character"></div>
-    <div id="princess" class="character"></div>
-    <div id="cat" class="character"></div>
-    <div id="lantern">🏮</div>
-    <div id="text">Use WASD to move across islands and complete quests!</div>
-  </div>
-  <div id="score">Hearts: 0</div>
-  <div id="minimap"></div>
+    <div id="map">
+        <div id="knight" class="character"></div>
+        <div id="princess" class="character"></div>
+        <div id="cat" class="character"></div>
+        <div id="lantern">🏮</div>
+        <div id="catBubble" class="bubble" style="display:none;">Meow! Follow me to the hearts! 🐾</div>
+    </div>
+    <div id="score">Hearts: 0 / 12</div>
+    <div id="text-box">Use WASD to find your way to My Buwan...</div>
+    <div id="minimap"></div>
 </div>
 
 <script>
-// === Game Variables ===
-const knight=document.getElementById("knight");
-const cat=document.getElementById("cat");
-const princess=document.getElementById("princess");
-const lantern=document.getElementById("lantern");
-const map=document.getElementById("map");
-const scoreUI=document.getElementById("score");
-const text=document.getElementById("text");
-const music=document.getElementById("bgMusic");
-const minimap=document.getElementById("minimap");
+// === Initialization ===
+const knight = document.getElementById("knight");
+const cat = document.getElementById("cat");
+const princess = document.getElementById("princess");
+const map = document.getElementById("map");
+const scoreUI = document.getElementById("score");
+const textBox = document.getElementById("text-box");
+const catBubble = document.getElementById("catBubble");
+const music = document.getElementById("bgMusic");
 
-let knightPos={x:100,y:400};
-let catPos={x:70,y:420};
-let score=0;
-const targetScore=12;
+let knightPos = { x: 200, y: 700 };
+let catPos = { x: 150, y: 720 };
+let score = 0;
+const targetScore = 12;
+const keys = {};
 
-// Islands & Quests
-const islands=[
-  {x:200,y:400,monster:true,hearts:3},
-  {x:800,y:600,monster:true,hearts:3},
-  {x:1500,y:500,monster:true,hearts:3},
-  {x:2200,y:700,monster:false,hearts:3} // Final island
+const islands = [
+    { x: 300, y: 600, monster: true, hearts: 3 },
+    { x: 1000, y: 400, monster: true, hearts: 3 },
+    { x: 1800, y: 800, monster: true, hearts: 3 },
+    { x: 2500, y: 500, monster: false, hearts: 3 }
 ];
 
-let hearts=[];
-let monsters=[];
+let hearts = [];
+let monsters = [];
+const princessPos = { x: 2800, y: 550 };
 
-// Princess final position
-const princessPos={x:2800,y:650};
-princess.style.left=princessPos.x+'px';
-princess.style.top=princessPos.y+'px';
+// === Setup ===
+princess.style.left = princessPos.x + 'px';
+princess.style.top = princessPos.y + 'px';
 
-// === Music ===
-music.volume=0.3;
-music.play().catch(()=>{});
-
-// === Spawn Hearts & Monsters ===
-function spawnIslandContent(){
-  islands.forEach(island=>{
-    // Hearts
-    for(let i=0;i<island.hearts;i++){
-      const h=document.createElement('div');
-      h.className='heart';
-      const hx=island.x + Math.random()*200;
-      const hy=island.y + Math.random()*150;
-      h.style.left=hx+'px';
-      h.style.top=hy+'px';
-      map.appendChild(h);
-      hearts.push({el:h,x:hx,y:hy});
-    }
-    // Monster
-    if(island.monster){
-      const m=document.createElement('div');
-      m.className='monster';
-      m.innerText='👾';
-      m.style.left=island.x+100+'px';
-      m.style.top=island.y+50+'px';
-      map.appendChild(m);
-      monsters.push({el:m,x:island.x+100,y:island.y+50,defeated:false});
-    }
-  });
+function spawnContent() {
+    islands.forEach(island => {
+        for(let i=0; i<island.hearts; i++) {
+            const h = document.createElement('div');
+            h.className = 'heart';
+            const hx = island.x + Math.random()*300;
+            const hy = island.y + Math.random()*200;
+            h.innerHTML = '💖';
+            h.style.left = hx + 'px';
+            h.style.top = hy + 'px';
+            map.appendChild(h);
+            hearts.push({ el: h, x: hx, y: hy });
+        }
+        if(island.monster) {
+            const m = document.createElement('div');
+            m.className = 'monster';
+            m.innerText = '👾';
+            m.style.left = island.x + 150 + 'px';
+            m.style.top = island.y + 100 + 'px';
+            map.appendChild(m);
+            monsters.push({ el: m, x: island.x + 150, y: island.y + 100, defeated: false });
+        }
+    });
 }
-spawnIslandContent();
+spawnContent();
 
-// === Movement & Collision ===
-document.addEventListener('keydown',(e)=>{
-  const step=20;
-  if(e.key==='w') knightPos.y-=step;
-  if(e.key==='s') knightPos.y+=step;
-  if(e.key==='a') knightPos.x-=step;
-  if(e.key==='d') knightPos.x+=step;
-
-  knightPos.x=Math.max(0,Math.min(map.offsetWidth-64,knightPos.x));
-  knightPos.y=Math.max(0,Math.min(map.offsetHeight-128,knightPos.y));
-
-  knight.style.left=knightPos.x+'px';
-  knight.style.top=knightPos.y+'px';
-
-  // Cat follows
-  catPos.x+=(knightPos.x-catPos.x-20)/5;
-  catPos.y+=(knightPos.y-catPos.y+50)/5;
-  cat.style.left=catPos.x+'px';
-  cat.style.top=catPos.y+'px';
-
-  // Map scroll
-  let mapX=Math.min(0,Math.max(window.innerWidth-map.offsetWidth,window.innerWidth/2 - knightPos.x -32));
-  let mapY=Math.min(0,Math.max(window.innerHeight-map.offsetHeight,window.innerHeight/2 - knightPos.y -64));
-  map.style.left=mapX+'px';
-  map.style.top=mapY+'px';
-
-  // Check hearts
-  hearts.forEach((h,i)=>{
-    const dx=knightPos.x-h.x;
-    const dy=knightPos.y-h.y;
-    if(Math.abs(dx)<40 && Math.abs(dy)<40){
-      h.el.remove(); hearts.splice(i,1); score++;
-      scoreUI.innerText='Hearts: '+score;
-      if(score>=targetScore) unlockEnding();
-    }
-  });
-
-  // Check monsters
-  monsters.forEach(m=>{
-    const dx=knightPos.x-m.x;
-    const dy=knightPos.y-m.y;
-    if(Math.abs(dx)<50 && Math.abs(dy)<50 && !m.defeated){
-      m.defeated=true;
-      m.el.style.display='none';
-      text.innerText='Monster Defeated!';
-    }
-  });
-
-  // Check princess
-  const pdx=knightPos.x-princessPos.x;
-  const pdy=knightPos.y-princessPos.y;
-  if(score>=targetScore && Math.abs(pdx)<50 && Math.abs(pdy)<50){
-    unlockEnding();
-  }
-
-  updateMinimap();
+// === Controls ===
+window.addEventListener('keydown', e => {
+    keys[e.key.toLowerCase()] = true;
+    if (music.paused) music.play().catch(() => {});
 });
+window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-// === Ending ===
-function unlockEnding(){
-  lantern.style.display='block';
-  lantern.style.left=princessPos.x+'px';
-  lantern.style.top=(princessPos.y-100)+'px';
-  text.innerHTML="Hubby Imran has reached My Buwan! 🏮";
+// === Game Loop ===
 
-  // Fireworks
-  for(let i=0;i<20;i++){
-    setTimeout(()=>{
-      const f=document.createElement('div');
-      f.innerHTML=(i%2===0)?'🎆':'✨';
-      f.style.position='absolute';
-      f.style.left=(50+Math.random()*60)+'vw';
-      f.style.top=(10+Math.random()*50)+'vh';
-      f.style.fontSize='50px';
-      f.style.zIndex='15';
-      map.appendChild(f);
-      setTimeout(()=>f.remove(),1500);
-    },i*150);
-  }
+function update() {
+    const speed = 7;
+    let moved = false;
 
-  // Love letter
-  setTimeout(()=>{
-    const message=document.createElement('div');
-    message.style.position='absolute';
-    message.style.left='50%';
-    message.style.top='60%';
-    message.style.transform='translateX(-50%)';
-    message.style.width='80%';
-    message.style.fontSize='26px';
-    message.style.background='rgba(20,20,20,0.9)';
-    message.style.padding='30px';
-    message.style.borderRadius='4px';
-    message.style.border='4px solid #aaa';
-    message.style.zIndex='40';
-    message.style.textShadow='2px 2px #000';
-    message.innerHTML=`<strong style="color:#ff77aa;">&lt;My Buwan&gt;</strong> Hubby, I love you so much. 💙<br>
-I wish the best for you always.<br>
-You make my days brighter even from far away.<br>
-If we are truly meant to be forever,<br>
-I hope we will see each other soon,<br>
-so I can finally hug you. 🤍`;
-    map.appendChild(message);
-  },2000);
+    if (keys['w']) { knightPos.y -= speed; moved = true; }
+    if (keys['s']) { knightPos.y += speed; moved = true; }
+    if (keys['a']) { 
+        knightPos.x -= speed; 
+        knight.classList.add('facing-left');
+        moved = true; 
+    }
+    if (keys['d']) { 
+        knightPos.x += speed; 
+        knight.classList.remove('facing-left');
+        moved = true; 
+    }
+
+    if (moved) {
+        // Boundaries
+        knightPos.x = Math.max(0, Math.min(2936, knightPos.x));
+        knightPos.y = Math.max(0, Math.min(1372, knightPos.y));
+        
+        render();
+        checkCollisions();
+    }
+    requestAnimationFrame(update);
 }
 
-// === Mini-map ===
-function updateMinimap(){
-  minimap.innerHTML='';
-  const scaleX=minimap.offsetWidth/map.offsetWidth;
-  const scaleY=minimap.offsetHeight/map.offsetHeight;
-  // Knight
-  const dot=document.createElement('div');
-  dot.className='minimap-dot';
-  dot.style.left=knightPos.x*scaleX+'px';
-  dot.style.top=knightPos.y*scaleY+'px';
-  minimap.appendChild(dot);
-  // Princess
-  const pd=document.createElement('div');
-  pd.className='minimap-dot';
-  pd.style.background='cyan';
-  pd.style.left=princessPos.x*scaleX+'px';
-  pd.style.top=princessPos.y*scaleY+'px';
-  minimap.appendChild(pd);
+function render() {
+    // Knight
+    knight.style.left = knightPos.x + 'px';
+    knight.style.top = knightPos.y + 'px';
+
+    // Smooth Cat AI
+    catPos.x += (knightPos.x - catPos.x - 50) * 0.05;
+    catPos.y += (knightPos.y - catPos.y + 40) * 0.05;
+    cat.style.left = catPos.x + 'px';
+    cat.style.top = catPos.y + 'px';
+    catBubble.style.left = catPos.x + 'px';
+    catBubble.style.top = (catPos.y - 20) + 'px';
+
+    // Show Cat Bubble when near
+    const distToCat = Math.hypot(knightPos.x - catPos.x, knightPos.y - catPos.y);
+    catBubble.style.display = distToCat < 150 ? 'block' : 'none';
+
+    // Camera (Centered on Knight)
+    let camX = window.innerWidth / 2 - knightPos.x;
+    let camY = window.innerHeight / 2 - knightPos.y;
+    
+    // Clamp camera to map edges
+    camX = Math.min(0, Math.max(window.innerWidth - 3000, camX));
+    camY = Math.min(0, Math.max(window.innerHeight - 1500, camY));
+    
+    map.style.transform = `translate(${camX}px, ${camY}px)`;
+    updateMinimap();
 }
 
+function checkCollisions() {
+    // Hearts
+    hearts.forEach((h, i) => {
+        if (Math.hypot(knightPos.x - h.x, knightPos.y - h.y) < 50) {
+            h.el.style.opacity = '0';
+            setTimeout(() => h.el.remove(), 300);
+            hearts.splice(i, 1);
+            score++;
+            scoreUI.innerText = `Hearts: ${score} / ${targetScore}`;
+            if(score === 4) textBox.innerText = "The path is long, but love makes it short. ❤️";
+            if(score === 8) textBox.innerText = "Almost there, Hubby! Keep going!";
+        }
+    });
+
+    // Monsters
+    monsters.forEach(m => {
+        if (!m.defeated && Math.hypot(knightPos.x - m.x, knightPos.y - m.y) < 60) {
+            m.defeated = true;
+            m.el.style.transform = 'scale(0) rotate(360deg)';
+            textBox.innerText = "Monster defeated with kindness! ✨";
+        }
+    });
+
+    // Princess Ending Trigger
+    if (score >= targetScore && Math.hypot(knightPos.x - princessPos.x, knightPos.y - princessPos.y) < 80) {
+        unlockEnding();
+    }
+}
+
+function updateMinimap() {
+    const mini = document.getElementById("minimap");
+    mini.innerHTML = '';
+    const sx = 150/3000; const sy = 75/1500;
+    
+    const kDot = document.createElement('div');
+    kDot.className = 'minimap-dot';
+    kDot.style.background = '#ff77aa';
+    kDot.style.left = knightPos.x * sx + 'px';
+    kDot.style.top = knightPos.y * sy + 'px';
+    mini.appendChild(kDot);
+
+    const pDot = document.createElement('div');
+    pDot.className = 'minimap-dot';
+    pDot.style.background = '#00f2ff';
+    pDot.style.left = princessPos.x * sx + 'px';
+    pDot.style.top = princessPos.y * sy + 'px';
+    mini.appendChild(pDot);
+}
+
+function unlockEnding() {
+    if(window.ended) return;
+    window.ended = true;
+    
+    const lantern = document.getElementById("lantern");
+    lantern.style.display = 'block';
+    lantern.style.left = (princessPos.x + 20) + 'px';
+    lantern.style.top = (princessPos.y - 100) + 'px';
+    
+    textBox.style.display = 'none';
+
+    // Celebration
+    for(let i=0; i<30; i++) {
+        setTimeout(() => {
+            const f = document.createElement('div');
+            f.innerHTML = i % 2 === 0 ? '🎆' : '💖';
+            f.style.position = 'absolute';
+            f.style.left = (princessPos.x - 200 + Math.random() * 400) + 'px';
+            f.style.top = (princessPos.y - 300 + Math.random() * 300) + 'px';
+            f.style.fontSize = '50px';
+            f.style.zIndex = '100';
+            map.appendChild(f);
+        }, i * 200);
+    }
+
+    setTimeout(() => {
+        const modal = document.createElement('div');
+        modal.style = "position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(15,15,35,0.95); padding:40px; border:4px solid #ff77aa; border-radius:20px; z-index:1000; text-align:center; width:70%; box-shadow: 0 0 50px #ff77aa;";
+        modal.innerHTML = `
+            <h1 style="color:#ff77aa; font-size:45px; margin-bottom:10px;">&lt;My Buwan&gt;</h1>
+            <p style="font-size:28px; line-height:1.4;">
+                Hubby Imran, you finally made it.<br><br>
+                Distance is just a test to see how far love can travel.<br>
+                Every heart you collected is a memory I treasure.<br>
+                You make my days brighter even from across the world.<br><br>
+                <span style="color:#00f2ff;">I hope I can finally hug you soon. I love you so much! 🤍</span>
+            </p>
+            <button onclick="location.reload()" style="background:#ff77aa; border:none; color:white; padding:10px 20px; font-family:'VT323'; font-size:24px; cursor:pointer; margin-top:20px;">Play Again</button>
+        `;
+        document.body.appendChild(modal);
+    }, 2500);
+}
+
+// Start Game
+requestAnimationFrame(update);
 </script>
 </body>
 </html>
