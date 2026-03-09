@@ -1,215 +1,214 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-<title>Distance Quest 4.0</title>
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distance Quest 6.0</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
 <style>
-
-body{
-margin:0;
-overflow:hidden;
-font-family:monospace;
-background:linear-gradient(#3b5d9a,#1d2b53);
-color:white;
+/* === General Styles === */
+body, html {
+  margin:0; padding:0;
+  font-family:'VT323', monospace;
+  overflow:hidden;
+  height:100vh;
+  background:#000;
 }
 
-#score{
-position:absolute;
-top:10px;
-left:10px;
-background:black;
-padding:10px;
-border-radius:10px;
+#gameArea {
+  position: relative;
+  width:100vw;
+  height:100vh;
+  overflow:hidden;
 }
 
-#boss{
-position:absolute;
-top:10px;
-right:10px;
-background:black;
-padding:10px;
-border-radius:10px;
+#map {
+  position: absolute;
+  width:2000px;
+  height:1200px;
+  background:url('https://i.imgur.com/5KzXoWb.jpg') repeat;
+  background-size:cover;
+  transition:left 0.2s, top 0.2s;
 }
 
-#knight{
-position:absolute;
-bottom:100px;
-left:60px;
-font-size:60px;
-transition:1s;
+/* === Characters === */
+.character {
+  position: absolute;
+  width:64px;
+  height:128px;
+  background-size:contain;
+  background-repeat:no-repeat;
+  z-index:10;
+  image-rendering: pixelated;
 }
 
-#princess{
-position:absolute;
-bottom:100px;
-right:60px;
-font-size:60px;
+#knight { background-image:url('https://mc-heads.net/skin/Steve'); }
+#princess { background-image:url('https://mc-heads.net/skin/Alex'); }
+#cat { width:48px; height:48px; background-image:url('https://static.wikia.nocookie.net/minecraft_gamepedia/images/3/3a/Cat.png'); }
+
+#monster {
+  position:absolute;
+  font-size:60px;
+  z-index:12;
 }
 
-#cat{
-position:absolute;
-bottom:60px;
-left:200px;
-font-size:40px;
+/* Hearts */
+.heart {
+  position:absolute;
+  font-size:40px;
+  cursor:pointer;
+  z-index:11;
+  animation: pulse 1s infinite alternate;
 }
 
-.heart{
-position:absolute;
-font-size:30px;
-cursor:pointer;
+@keyframes pulse { from{transform:scale(1);} to{transform:scale(1.2);} }
+
+/* Lantern Ending */
+#lantern {
+  position:absolute;
+  font-size:80px;
+  display:none;
+  z-index:15;
+  animation:float 3s ease-in-out infinite alternate;
 }
 
-#monster{
-position:absolute;
-top:200px;
-right:200px;
-font-size:80px;
-}
+@keyframes float { from{transform:translateY(0);} to{transform:translateY(-20px);} }
 
-button{
-padding:10px 20px;
-border:none;
-background:#ff77aa;
-cursor:pointer;
-}
-
-#textBox{
-position:absolute;
-bottom:0;
-width:100%;
-background:rgba(0,0,0,0.7);
-padding:20px;
-text-align:center;
-}
-
-.lantern{
-position:absolute;
-font-size:40px;
-animation:float 5s linear infinite;
-}
-
-@keyframes float{
-0%{transform:translateY(0);opacity:1;}
-100%{transform:translateY(-600px);opacity:0;}
-}
-
+/* UI */
+#score { position:absolute; top:10px; left:10px; font-size:24px; color:#ff77aa; background:rgba(0,0,0,0.5); padding:5px; border-radius:4px; }
+#text { position:absolute; bottom:10px; width:100%; text-align:center; font-size:26px; color:white; text-shadow:2px 2px #000; }
 </style>
 </head>
-
 <body>
 
-<div id="score">Hearts: 0</div>
-<div id="boss">Monster HP: <span id="hp">100</span></div>
+<audio id="bgMusic" loop preload="auto">
+  <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3">
+</audio>
 
-<div id="knight">🛡️</div>
-<div id="princess">👑</div>
-<div id="cat">🐱</div>
-<div id="monster">👾</div>
-
-<div id="textBox">
-<span id="text">Collect hearts to defeat the Distance Monster!</span>
-<br><br>
-<button onclick="attack()">Attack Monster ⚔️</button>
+<div id="gameArea">
+  <div id="map">
+    <div id="knight" class="character"></div>
+    <div id="princess" class="character"></div>
+    <div id="cat" class="character"></div>
+    <div id="monster">👾</div>
+    <div id="lantern">🏮</div>
+    <!-- Hearts will be added dynamically -->
+  </div>
+  <div id="score">Hearts: 0</div>
+  <div id="text">Use WASD to move and collect hearts!</div>
 </div>
 
 <script>
+// === Variables ===
+const knight=document.getElementById("knight");
+const cat=document.getElementById("cat");
+const princess=document.getElementById("princess");
+const monster=document.getElementById("monster");
+const lantern=document.getElementById("lantern");
+const map=document.getElementById("map");
+const scoreUI=document.getElementById("score");
+const text=document.getElementById("text");
+const music=document.getElementById("bgMusic");
 
-let hearts=0
-let hp=100
-let knightPos=60
+let knightPos={x:100,y:400};
+let catPos={x:70,y:420};
+let score=0;
+let hearts=[];
 
-function spawnHeart(){
+const targetScore=8;
 
-let heart=document.createElement("div")
-heart.className="heart"
-heart.innerHTML="💖"
+// Princess position
+const princessPos={x:1800,y:400};
+princess.style.left=princessPos.x+'px';
+princess.style.top=princessPos.y+'px';
 
-heart.style.left=Math.random()*window.innerWidth+"px"
-heart.style.top=(100+Math.random()*300)+"px"
+// Monster position
+const monsterPos={x:1000,y:600};
+monster.style.left=monsterPos.x+'px';
+monster.style.top=monsterPos.y+'px';
 
-heart.onclick=function(){
+// === Music ===
+music.volume=0.3;
+music.play().catch(()=>{});
 
-hearts++
-document.getElementById("score").innerHTML="Hearts: "+hearts
+// === Keyboard Movement ===
+document.addEventListener('keydown',(e)=>{
+  const step=20;
+  if(e.key==='w') knightPos.y-=step;
+  if(e.key==='s') knightPos.y+=step;
+  if(e.key==='a') knightPos.x-=step;
+  if(e.key==='d') knightPos.x+=step;
 
-heart.remove()
+  // Boundaries
+  knightPos.x=Math.max(0,Math.min(1936,knightPos.x));
+  knightPos.y=Math.max(0,Math.min(1072,knightPos.y));
 
-moveKnight()
+  knight.style.left=knightPos.x+'px';
+  knight.style.top=knightPos.y+'px';
 
+  // Cat follows
+  catPos.x+=(knightPos.x-catPos.x-20)/5;
+  catPos.y+=(knightPos.y-catPos.y+50)/5;
+  cat.style.left=catPos.x+'px';
+  cat.style.top=catPos.y+'px';
+
+  // Map moves (center knight)
+  let mapX=Math.min(0,Math.max(window.innerWidth-map.offsetWidth, window.innerWidth/2 - knightPos.x -32));
+  let mapY=Math.min(0,Math.max(window.innerHeight-map.offsetHeight, window.innerHeight/2 - knightPos.y -64));
+  map.style.left=mapX+'px';
+  map.style.top=mapY+'px';
+
+  // Check collision with hearts
+  hearts.forEach((h,index)=>{
+    const dx=knightPos.x - h.x;
+    const dy=knightPos.y - h.y;
+    if(Math.abs(dx)<40 && Math.abs(dy)<40){
+      h.el.remove();
+      hearts.splice(index,1);
+      score++;
+      scoreUI.innerText='Hearts: '+score;
+      if(score>=targetScore) unlockEnding();
+    }
+  });
+
+  // Check collision with monster
+  const mdx=knightPos.x-monsterPos.x;
+  const mdy=knightPos.y-monsterPos.y;
+  if(Math.abs(mdx)<50 && Math.abs(mdy)<50){
+    text.innerText="Distance Monster Defeated! ❤️";
+    monster.style.display='none';
+  }
+
+  // Check collision with princess
+  const pdx=knightPos.x-princessPos.x;
+  const pdy=knightPos.y-princessPos.y;
+  if(score>=targetScore && Math.abs(pdx)<50 && Math.abs(pdy)<50){
+    unlockEnding();
+  }
+});
+
+// === Spawn Hearts ===
+function spawnHearts(){
+  for(let i=0;i<targetScore;i++){
+    const h=document.createElement('div');
+    h.className='heart';
+    const hx=Math.random()*1800+50;
+    const hy=Math.random()*800+50;
+    h.style.left=hx+'px';
+    h.style.top=hy+'px';
+    map.appendChild(h);
+    hearts.push({el:h,x:hx,y:hy});
+  }
 }
+spawnHearts();
 
-document.body.appendChild(heart)
-
+// === Unlock Ending ===
+function unlockEnding(){
+  lantern.style.display='block';
+  lantern.style.left=princessPos.x+'px';
+  lantern.style.top=(princessPos.y-100)+'px';
+  text.innerHTML="Hubby Imran has reached My Buwan! 🏮";
 }
-
-setInterval(spawnHeart,2000)
-
-function moveKnight(){
-
-knightPos+=40
-document.getElementById("knight").style.left=knightPos+"px"
-
-}
-
-function attack(){
-
-if(hearts<=0){
-alert("Collect hearts first!")
-return
-}
-
-hp-=10
-hearts--
-
-document.getElementById("hp").innerText=hp
-document.getElementById("score").innerText="Hearts: "+hearts
-
-if(hp<=0){
-victory()
-}
-
-}
-
-function victory(){
-
-document.getElementById("monster").remove()
-
-document.getElementById("text").innerHTML=
-"The Distance Monster is defeated. Hubby reaches My Buwan."
-
-nightScene()
-
-}
-
-function nightScene(){
-
-document.body.style.background="linear-gradient(#020111,#191621)"
-
-setInterval(()=>{
-
-let lantern=document.createElement("div")
-lantern.className="lantern"
-lantern.innerHTML="🏮"
-
-lantern.style.left=Math.random()*window.innerWidth+"px"
-lantern.style.top="500px"
-
-document.body.appendChild(lantern)
-
-setTimeout(()=>lantern.remove(),5000)
-
-},800)
-
-}
-
-setInterval(()=>{
-
-let cat=document.getElementById("cat")
-cat.style.left=Math.random()*window.innerWidth+"px"
-
-},4000)
-
 </script>
 
 </body>
