@@ -3,80 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Distance Quest 6.0</title>
+<title>Distance Quest 7.0</title>
 <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
 <style>
 /* === General Styles === */
-body, html {
-  margin:0; padding:0;
-  font-family:'VT323', monospace;
-  overflow:hidden;
-  height:100vh;
-  background:#000;
-}
+body, html {margin:0;padding:0;font-family:'VT323',monospace;overflow:hidden;height:100vh;background:#000;}
+#gameArea {position:relative;width:100vw;height:100vh;overflow:hidden;}
+#map {position:absolute;width:3000px;height:1500px;background:url('https://i.imgur.com/5KzXoWb.jpg') repeat; background-size:cover;transition:left 0.2s, top 0.2s;}
+.character {position:absolute;width:64px;height:128px;background-size:contain;background-repeat:no-repeat;z-index:10;image-rendering: pixelated;}
+#knight {background-image:url('https://mc-heads.net/skin/Steve');} 
+#princess {background-image:url('https://mc-heads.net/skin/Alex');} 
+#cat {width:48px;height:48px;background-image:url('https://static.wikia.nocookie.net/minecraft_gamepedia/images/3/3a/Cat.png');}
 
-#gameArea {
-  position: relative;
-  width:100vw;
-  height:100vh;
-  overflow:hidden;
-}
-
-#map {
-  position: absolute;
-  width:2000px;
-  height:1200px;
-  background:url('https://i.imgur.com/5KzXoWb.jpg') repeat;
-  background-size:cover;
-  transition:left 0.2s, top 0.2s;
-}
-
-/* === Characters === */
-.character {
-  position: absolute;
-  width:64px;
-  height:128px;
-  background-size:contain;
-  background-repeat:no-repeat;
-  z-index:10;
-  image-rendering: pixelated;
-}
-
-#knight { background-image:url('https://mc-heads.net/skin/Steve'); }
-#princess { background-image:url('https://mc-heads.net/skin/Alex'); }
-#cat { width:48px; height:48px; background-image:url('https://static.wikia.nocookie.net/minecraft_gamepedia/images/3/3a/Cat.png'); }
-
-#monster {
-  position:absolute;
-  font-size:60px;
-  z-index:12;
-}
-
-/* Hearts */
-.heart {
-  position:absolute;
-  font-size:40px;
-  cursor:pointer;
-  z-index:11;
-  animation: pulse 1s infinite alternate;
-}
-
-@keyframes pulse { from{transform:scale(1);} to{transform:scale(1.2);} }
-
-/* Lantern Ending */
-#lantern {
-  position:absolute;
-  font-size:80px;
-  display:none;
-  z-index:15;
-  animation:float 3s ease-in-out infinite alternate;
-}
-
-@keyframes float { from{transform:translateY(0);} to{transform:translateY(-20px);} }
-
-/* UI */
-#score { position:absolute; top:10px; left:10px; font-size:24px; color:#ff77aa; background:rgba(0,0,0,0.5); padding:5px; border-radius:4px; }
-#text { position:absolute; bottom:10px; width:100%; text-align:center; font-size:26px; color:white; text-shadow:2px 2px #000; }
+/* Monster emoji */
+.monster {position:absolute;font-size:60px;z-index:12;}
+.heart {position:absolute;font-size:40px;cursor:pointer;z-index:11;animation:pulse 1s infinite alternate;}
+@keyframes pulse {from{transform:scale(1);}to{transform:scale(1.2);}}
+#lantern {position:absolute;font-size:80px;display:none;z-index:15;animation:float 3s ease-in-out infinite alternate;}
+@keyframes float {from{transform:translateY(0);}to{transform:translateY(-20px);}}
+#score {position:absolute;top:10px;left:10px;font-size:24px;color:#ff77aa;background:rgba(0,0,0,0.5);padding:5px;border-radius:4px;}
+#text {position:absolute;bottom:10px;width:100%;text-align:center;font-size:26px;color:white;text-shadow:2px 2px #000;}
+#minimap {position:absolute;top:10px;right:10px;width:150px;height:100px;background:rgba(0,0,0,0.5);border:2px solid #fff;z-index:20;}
+.minimap-dot {position:absolute;width:6px;height:6px;background:#ff77aa;border-radius:50%;}
 </style>
 </head>
 <body>
@@ -90,48 +38,79 @@ body, html {
     <div id="knight" class="character"></div>
     <div id="princess" class="character"></div>
     <div id="cat" class="character"></div>
-    <div id="monster">👾</div>
     <div id="lantern">🏮</div>
-    <!-- Hearts will be added dynamically -->
+    <div id="text">Use WASD to move across islands and complete quests!</div>
   </div>
   <div id="score">Hearts: 0</div>
-  <div id="text">Use WASD to move and collect hearts!</div>
+  <div id="minimap"></div>
 </div>
 
 <script>
-// === Variables ===
+// === Game Variables ===
 const knight=document.getElementById("knight");
 const cat=document.getElementById("cat");
 const princess=document.getElementById("princess");
-const monster=document.getElementById("monster");
 const lantern=document.getElementById("lantern");
 const map=document.getElementById("map");
 const scoreUI=document.getElementById("score");
 const text=document.getElementById("text");
 const music=document.getElementById("bgMusic");
+const minimap=document.getElementById("minimap");
 
 let knightPos={x:100,y:400};
 let catPos={x:70,y:420};
 let score=0;
+const targetScore=12;
+
+// Islands & Quests
+const islands=[
+  {x:200,y:400,monster:true,hearts:3},
+  {x:800,y:600,monster:true,hearts:3},
+  {x:1500,y:500,monster:true,hearts:3},
+  {x:2200,y:700,monster:false,hearts:3} // Final island
+];
+
 let hearts=[];
+let monsters=[];
 
-const targetScore=8;
-
-// Princess position
-const princessPos={x:1800,y:400};
+// Princess final position
+const princessPos={x:2800,y:650};
 princess.style.left=princessPos.x+'px';
 princess.style.top=princessPos.y+'px';
-
-// Monster position
-const monsterPos={x:1000,y:600};
-monster.style.left=monsterPos.x+'px';
-monster.style.top=monsterPos.y+'px';
 
 // === Music ===
 music.volume=0.3;
 music.play().catch(()=>{});
 
-// === Keyboard Movement ===
+// === Spawn Hearts & Monsters ===
+function spawnIslandContent(){
+  islands.forEach(island=>{
+    // Hearts
+    for(let i=0;i<island.hearts;i++){
+      const h=document.createElement('div');
+      h.className='heart';
+      const hx=island.x + Math.random()*200;
+      const hy=island.y + Math.random()*150;
+      h.style.left=hx+'px';
+      h.style.top=hy+'px';
+      map.appendChild(h);
+      hearts.push({el:h,x:hx,y:hy});
+    }
+    // Monster
+    if(island.monster){
+      const m=document.createElement('div');
+      m.className='monster';
+      m.innerText='👾';
+      m.style.left=island.x+100+'px';
+      m.style.top=island.y+50+'px';
+      map.appendChild(m);
+      monsters.push({el:m,x:island.x+100,y:island.y+50,defeated:false});
+    }
+  });
+}
+spawnIslandContent();
+
+// === Movement & Collision ===
 document.addEventListener('keydown',(e)=>{
   const step=20;
   if(e.key==='w') knightPos.y-=step;
@@ -139,9 +118,8 @@ document.addEventListener('keydown',(e)=>{
   if(e.key==='a') knightPos.x-=step;
   if(e.key==='d') knightPos.x+=step;
 
-  // Boundaries
-  knightPos.x=Math.max(0,Math.min(1936,knightPos.x));
-  knightPos.y=Math.max(0,Math.min(1072,knightPos.y));
+  knightPos.x=Math.max(0,Math.min(map.offsetWidth-64,knightPos.x));
+  knightPos.y=Math.max(0,Math.min(map.offsetHeight-128,knightPos.y));
 
   knight.style.left=knightPos.x+'px';
   knight.style.top=knightPos.y+'px';
@@ -152,64 +130,111 @@ document.addEventListener('keydown',(e)=>{
   cat.style.left=catPos.x+'px';
   cat.style.top=catPos.y+'px';
 
-  // Map moves (center knight)
-  let mapX=Math.min(0,Math.max(window.innerWidth-map.offsetWidth, window.innerWidth/2 - knightPos.x -32));
-  let mapY=Math.min(0,Math.max(window.innerHeight-map.offsetHeight, window.innerHeight/2 - knightPos.y -64));
+  // Map scroll
+  let mapX=Math.min(0,Math.max(window.innerWidth-map.offsetWidth,window.innerWidth/2 - knightPos.x -32));
+  let mapY=Math.min(0,Math.max(window.innerHeight-map.offsetHeight,window.innerHeight/2 - knightPos.y -64));
   map.style.left=mapX+'px';
   map.style.top=mapY+'px';
 
-  // Check collision with hearts
-  hearts.forEach((h,index)=>{
-    const dx=knightPos.x - h.x;
-    const dy=knightPos.y - h.y;
+  // Check hearts
+  hearts.forEach((h,i)=>{
+    const dx=knightPos.x-h.x;
+    const dy=knightPos.y-h.y;
     if(Math.abs(dx)<40 && Math.abs(dy)<40){
-      h.el.remove();
-      hearts.splice(index,1);
-      score++;
+      h.el.remove(); hearts.splice(i,1); score++;
       scoreUI.innerText='Hearts: '+score;
       if(score>=targetScore) unlockEnding();
     }
   });
 
-  // Check collision with monster
-  const mdx=knightPos.x-monsterPos.x;
-  const mdy=knightPos.y-monsterPos.y;
-  if(Math.abs(mdx)<50 && Math.abs(mdy)<50){
-    text.innerText="Distance Monster Defeated! ❤️";
-    monster.style.display='none';
-  }
+  // Check monsters
+  monsters.forEach(m=>{
+    const dx=knightPos.x-m.x;
+    const dy=knightPos.y-m.y;
+    if(Math.abs(dx)<50 && Math.abs(dy)<50 && !m.defeated){
+      m.defeated=true;
+      m.el.style.display='none';
+      text.innerText='Monster Defeated!';
+    }
+  });
 
-  // Check collision with princess
+  // Check princess
   const pdx=knightPos.x-princessPos.x;
   const pdy=knightPos.y-princessPos.y;
   if(score>=targetScore && Math.abs(pdx)<50 && Math.abs(pdy)<50){
     unlockEnding();
   }
+
+  updateMinimap();
 });
 
-// === Spawn Hearts ===
-function spawnHearts(){
-  for(let i=0;i<targetScore;i++){
-    const h=document.createElement('div');
-    h.className='heart';
-    const hx=Math.random()*1800+50;
-    const hy=Math.random()*800+50;
-    h.style.left=hx+'px';
-    h.style.top=hy+'px';
-    map.appendChild(h);
-    hearts.push({el:h,x:hx,y:hy});
-  }
-}
-spawnHearts();
-
-// === Unlock Ending ===
+// === Ending ===
 function unlockEnding(){
   lantern.style.display='block';
   lantern.style.left=princessPos.x+'px';
   lantern.style.top=(princessPos.y-100)+'px';
   text.innerHTML="Hubby Imran has reached My Buwan! 🏮";
-}
-</script>
 
+  // Fireworks
+  for(let i=0;i<20;i++){
+    setTimeout(()=>{
+      const f=document.createElement('div');
+      f.innerHTML=(i%2===0)?'🎆':'✨';
+      f.style.position='absolute';
+      f.style.left=(50+Math.random()*60)+'vw';
+      f.style.top=(10+Math.random()*50)+'vh';
+      f.style.fontSize='50px';
+      f.style.zIndex='15';
+      map.appendChild(f);
+      setTimeout(()=>f.remove(),1500);
+    },i*150);
+  }
+
+  // Love letter
+  setTimeout(()=>{
+    const message=document.createElement('div');
+    message.style.position='absolute';
+    message.style.left='50%';
+    message.style.top='60%';
+    message.style.transform='translateX(-50%)';
+    message.style.width='80%';
+    message.style.fontSize='26px';
+    message.style.background='rgba(20,20,20,0.9)';
+    message.style.padding='30px';
+    message.style.borderRadius='4px';
+    message.style.border='4px solid #aaa';
+    message.style.zIndex='40';
+    message.style.textShadow='2px 2px #000';
+    message.innerHTML=`<strong style="color:#ff77aa;">&lt;My Buwan&gt;</strong> Hubby, I love you so much. 💙<br>
+I wish the best for you always.<br>
+You make my days brighter even from far away.<br>
+If we are truly meant to be forever,<br>
+I hope we will see each other soon,<br>
+so I can finally hug you. 🤍`;
+    map.appendChild(message);
+  },2000);
+}
+
+// === Mini-map ===
+function updateMinimap(){
+  minimap.innerHTML='';
+  const scaleX=minimap.offsetWidth/map.offsetWidth;
+  const scaleY=minimap.offsetHeight/map.offsetHeight;
+  // Knight
+  const dot=document.createElement('div');
+  dot.className='minimap-dot';
+  dot.style.left=knightPos.x*scaleX+'px';
+  dot.style.top=knightPos.y*scaleY+'px';
+  minimap.appendChild(dot);
+  // Princess
+  const pd=document.createElement('div');
+  pd.className='minimap-dot';
+  pd.style.background='cyan';
+  pd.style.left=princessPos.x*scaleX+'px';
+  pd.style.top=princessPos.y*scaleY+'px';
+  minimap.appendChild(pd);
+}
+
+</script>
 </body>
 </html>
