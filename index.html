@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distance Quest 3.0</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<style>
+/* === General Styles === */
+body {
+    margin: 0;
+    overflow: hidden;
+    font-family: 'VT323', monospace;
+    background: #444 url("https://i.imgur.com/8Q8H7fO.png") center/cover no-repeat;
+    color: white;
+}
+
+#gameArea {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+}
+
+#gameBox {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    background: rgba(0,0,0,0.85);
+    padding: 20px;
+    border-top: 5px solid #ff77aa;
+    z-index: 10;
+}
+
+#text {
+    font-size: 28px;
+    min-height: 80px;
+}
+
+button {
+    padding: 10px 20px;
+    margin: 10px;
+    border: 4px solid white;
+    font-size: 24px;
+    background: #888;
+    color: white;
+    cursor: pointer;
+    font-family: 'VT323', monospace;
+}
+
+button:hover { background: #555; }
+
+#score, #timer {
+    position: absolute;
+    top: 10px;
+    font-size: 26px;
+    background: rgba(0,0,0,0.7);
+    padding: 10px;
+    border-radius: 4px;
+}
+
+#score { left: 10px; color: #ff77aa; }
+#timer { right: 10px; color: #ff4444; display: none; }
+
+/* === Minecraft Characters === */
+.mc-char {
+    position: absolute;
+    bottom: 180px;
+    width: 64px;
+    height: 128px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    transition: all 0.7s;
+    image-rendering: pixelated;
+    z-index: 5;
+}
+
+#knight { left: 60px; background-image: url("https://mc-heads.net/skin/Steve"); }
+#princess { right: 80px; background-image: url("https://mc-heads.net/skin/Alex"); }
+#cat { bottom: 170px; width: 64px; height: 64px; background-image: url("https://static.wikia.nocookie.net/minecraft_gamepedia/images/3/3a/Cat.png"); background-size: contain; background-repeat: no-repeat; }
+
+/* === Monster === */
+#monster {
+    position: absolute;
+    top: 200px;
+    left: 50%;
+    font-size: 80px;
+    display: none;
+}
+
+/* === Hearts & Petals === */
+.heart {
+    position: absolute;
+    font-size: 48px;
+    cursor: pointer;
+}
+
+.petal {
+    position: absolute;
+    font-size: 22px;
+    animation: fall 6s linear infinite;
+}
+
+@keyframes fall {
+    0% { transform: translateY(-10px); }
+    100% { transform: translateY(100vh); }
+}
+
+/* === Overlay === */
+#overlay {
+    position: fixed;
+    top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.95);
+    display:flex; flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    z-index:50;
+}
+
+#overlay h1 { font-size: 60px; color: #ff77aa; text-shadow: 2px 2px #000; }
+
+#achievement {
+    display: none;
+    font-size: 32px;
+    color: #55ffff;
+    text-shadow: 2px 2px #000;
+}
+</style>
+</head>
+<body>
+
+<!-- Background Music -->
+<audio id="romanceMusic" loop preload="auto">
+    <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3">
+</audio>
+
+<!-- Start Overlay -->
+<div id="overlay">
+    <h1>Distance Quest 3.0</h1>
+    <button onclick="startGame()">Start Adventure 💖</button>
+</div>
+
+<!-- Game Area -->
+<div id="gameArea">
+    <div id="score">Hearts: 0</div>
+    <div id="timer">15</div>
+
+    <div id="knight" class="mc-char"></div>
+    <div id="princess" class="mc-char"></div>
+    <div id="cat"></div>
+    <div id="monster">👾</div>
+
+    <div id="gameBox">
+        <div id="text">Connecting...</div>
+        <div id="choices"></div>
+        <button id="nextBtn" onclick="nextLine()">Next</button>
+        <div id="achievement">✨ Advancement Get: Forever Together 💙 ✨</div>
+    </div>
+</div>
+
+<script>
+// === Story & Game Variables ===
+const story = [
+    "Hubby Imran enters the blocky world.",
+    "My Buwan waits far away in another land.",
+    "The distance monster guards the path.",
+    "Collect the hearts of love to reach her!"
+];
+
+let index = 0;
+let typing = false;
+let score = 0;
+let targetScore = 8;
+let knightPos = 60;
+let timeLeft = 15;
+let timer;
+let running = false;
+
+const music = document.getElementById("romanceMusic");
+
+// === Start Game ===
+function startGame() {
+    document.getElementById("overlay").style.display = "none";
+    music.play().catch(()=>{});
+    nextLine();
+    petals();
+}
+
+// === Typewriter ===
+function typeWriter(text, callback) {
+    typing = true;
+    let i = 0;
+    const el = document.getElementById("text");
+    el.innerHTML = "";
+    function t() {
+        if(i < text.length){
+            el.innerHTML += text.charAt(i);
+            i++;
+            setTimeout(t,30);
+        } else {
+            typing = false;
+            if(callback) callback();
+        }
+    }
+    t();
+}
+
+// === Story Navigation ===
+function nextLine() {
+    if(typing) return;
+    if(index < story.length){
+        typeWriter(story[index]);
+        index++;
+    } else showChoice();
+}
+
+// === Choices ===
+function showChoice() {
+    document.getElementById("nextBtn").style.display = "none";
+    document.getElementById("choices").innerHTML =
+        `<button onclick="fightMonster()">Fight Distance Monster</button>
+         <button onclick="startQuest()">Collect Love Hearts</button>`;
+}
+
+// === Monster Fight ===
+function fightMonster() {
+    const m = document.getElementById("monster");
+    m.style.display = "block";
+    setTimeout(()=>{
+        m.style.display = "none";
+        alert("Monster defeated! Love is stronger 💖");
+        startQuest();
+    },2000);
+}
+
+// === Heart Quest ===
+function startQuest() {
+    document.getElementById("choices").innerHTML="";
+    document.getElementById("text").innerHTML="Collect hearts before time runs out!";
+    running = true;
+    document.getElementById("timer").style.display = "block";
+    timer = setInterval(updateTimer,1000);
+    spawnHeart();
+}
+
+function updateTimer() {
+    timeLeft--;
+    document.getElementById("timer").innerHTML = timeLeft;
+    if(timeLeft<=0){ 
+        alert("You ran out of time! Love respawns!");
+        location.reload();
+    }
+}
+
+// === Spawn Heart ===
+function spawnHeart() {
+    if(score>=targetScore){ endQuest(); return; }
+
+    const heart = document.createElement("div");
+    heart.className = "heart";
+    heart.innerHTML = "💖";
+    heart.style.left = Math.random()*(window.innerWidth-100)+"px";
+    heart.style.top = Math.random()*400+150+"px";
+
+    heart.onclick = function() {
+        score++;
+        document.getElementById("score").innerHTML = "Hearts: "+score;
+        heart.remove();
+        moveKnight();
+        spawnHeart();
+    }
+
+    document.body.appendChild(heart);
+}
+
+// === Move Knight & Cat ===
+function moveKnight() {
+    knightPos += Math.floor((window.innerWidth-200)/targetScore);
+    document.getElementById("knight").style.left = knightPos+"px";
+    const cat = document.getElementById("cat");
+    cat.style.left = (knightPos-70)+"px";
+}
+
+// === Ending Sequence ===
+function endQuest(){
+    clearInterval(timer);
+    document.getElementById("timer").style.display="none";
+    typeWriter("Hubby finally reaches My Buwan...", ()=>{
+        document.getElementById("achievement").style.display="block";
+
+        const cake = document.createElement("div");
+        cake.innerHTML="🎂💣";
+        cake.style.fontSize="120px";
+        cake.style.position="absolute";
+        cake.style.left="50%";
+        cake.style.top="40%";
+        cake.style.transform="translate(-50%,-50%)";
+        document.body.appendChild(cake);
+
+        setTimeout(()=>{
+            cake.innerHTML="🎂✨";
+            for(let i=0;i<20;i++){
+                setTimeout(()=>{
+                    const fire=document.createElement("div");
+                    fire.innerHTML=(i%2===0)?"🎆":"✨";
+                    fire.style.position="absolute";
+                    fire.style.left=Math.random()*100+"vw";
+                    fire.style.top=Math.random()*60+"vh";
+                    fire.style.fontSize="50px";
+                    document.body.appendChild(fire);
+                    setTimeout(()=>fire.remove(),2000);
+                }, i*100);
+            }
+
+            // Final message
+            const msg=document.createElement("div");
+            msg.style.position="absolute";
+            msg.style.left="50%";
+            msg.style.top="65%";
+            msg.style.transform="translateX(-50%)";
+            msg.style.width="70%";
+            msg.style.fontSize="26px";
+            msg.style.background="rgba(0,0,0,0.9)";
+            msg.style.padding="30px";
+            msg.style.borderRadius="4px";
+            msg.innerHTML = `
+                Hubby, I love you so much 💙<br><br>
+                I wish the best for you always.<br>
+                You make my days brighter even from far away.<br><br>
+                If we are truly meant to be forever,<br>
+                I hope we will see each other soon<br>
+                so I can finally hug you.
+            `;
+            document.body.appendChild(msg);
+
+            secretLetter();
+
+        },1500);
+    });
+}
+
+// === Secret Letter ===
+function secretLetter(){
+    const btn=document.createElement("button");
+    btn.innerText="Open Secret Love Letter 💌";
+    btn.style.position="absolute";
+    btn.style.bottom="120px";
+    btn.style.left="50%";
+    btn.style.transform="translateX(-50%)";
+
+    btn.onclick=function(){
+        const letter=document.createElement("div");
+        letter.style.position="absolute";
+        letter.style.left="50%";
+        letter.style.top="30%";
+        letter.style.transform="translateX(-50%)";
+        letter.style.width="60%";
+        letter.style.fontSize="26px";
+        letter.style.background="white";
+        letter.style.color="black";
+        letter.style.padding="30px";
+        letter.style.borderRadius="6px";
+        letter.innerHTML = `
+            My Hubby,<br><br>
+            Thank you for always being there for me.<br>
+            Even when distance is hard, you make me smile.<br><br>
+            You are my knight and I am your princess.<br><br>
+            Forever your Buwan 💙
+        `;
+        document.body.appendChild(letter);
+    }
+
+    document.body.appendChild(btn);
+}
+
+// === Falling Petals ===
+function petals(){
+    setInterval(()=>{
+        const p=document.createElement("div");
+        p.className="petal";
+        p.innerHTML="🌸";
+        p.style.left=Math.random()*100+"vw";
+        document.body.appendChild(p);
+        setTimeout(()=>p.remove(),6000);
+    },600);
+}
+</script>
+
+</body>
+</html>
